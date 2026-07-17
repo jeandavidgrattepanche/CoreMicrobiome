@@ -12,24 +12,23 @@ source("02_sensitivity_tests.R")
 pipeline_summary()
 
 # 01 Import
-otu <- read.delim("OTUtable.txt", row.names = 1, check.names = FALSE) 
-# your OTU table
-#OTU sample1 sample2 ... 
-#OTU1 number number ...
-#OTU2 number number ...
-#OTU3 number number ...
-# ...
-meta <- read.delim("metadata.txt")
-# metadata
-#Samplename	city	site	molecule	time	Sampleid	dataset
-# sample1	cityA	site1	16Sc	t1	A_1_t1	exp2
-# sample2	cityB	site1	16Sc	t4	B_1_t4	exp2
-# sample3	cityB	site2	16SD	t10	B_2_t10	exp4 
+otu <- read.delim("/Volumes/JayDiii2SSD/00_Bioinfo_2025/Amplicon/PSC/forR/OTUtable_temp.txt", row.names = 1, check.names = FALSE)
+meta <- read.delim("/Volumes/JayDiii2SSD/00_Bioinfo_2025/Amplicon/PSC/forR/SAB_2325baccor_metadata.txt")
+
+ 
+# dat <- subset_data(
+#     otu,
+#     meta,
+#     city %in% c("LMDC","FHNY"),
+#     dataset == "Environmental",
+#     molecule == "16Sc",
+#     min_reads = MIN_READS
+# )
 dat <- subset_data(
     otu,
     meta,
-    city %in% c("LMDC","FHNY"),
-    dataset == "Environmental",
+    city  == "FHNY",
+    dataset %in% c("Environmental","whiteMarble"),
     molecule == "16Sc",
     min_reads = MIN_READS
 )
@@ -64,14 +63,15 @@ dat <- subset_data(
 #     occ,
 #     max_abs = MAX_ABSENCES
 # )
-x <- run_core(dat)
+# x <- run_core(dat)
+x <- run_core(dat, group = GROUP)
 
 stratified <- x$stratified
 rare <- x$rare
 occ <- x$occ
-core <- x$core
+classified <- x$core
 
-sumcore <- summary_core(core)
+sumcore <- summary_core(classified)
 print(sumcore$classification)
 print(sumcore$pattern)
 

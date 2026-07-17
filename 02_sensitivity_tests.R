@@ -1,6 +1,6 @@
 run_core <- function(
     dat,
-    group = "city",
+    group = GROUP,
     n = NULL,
     depth = RARE_DEPTH,
     nrep = N_RAREFACTIONS,
@@ -18,25 +18,38 @@ run_core <- function(
         stratified = stratified,
         rare = rare,
         occ = occ,
-        core = core
+        core = core$core,
+        groups = core$groups
 ))
 }
 
-count_core <- function(core){
-    tab <- table(core$Classification)
-    get <- function(name){
-        if(name %in% names(tab))
-            as.integer(tab[name])
-        else
-            0
-    }
-    data.frame(
-        Global = get("Global Core"),
-        FHNY   = get("FHNY Specific"),
-        LMDC   = get("LMDC Specific")
-    )
-}
+# count_core <- function(core){
+#     tab <- table(core$Classification)
+#     get <- function(name){
+#         if(name %in% names(tab))
+#             as.integer(tab[name])
+#         else
+#             0
+#     }
+#     data.frame(
+#         Global = get("Global Core"),
+#         FHNY   = get("FHNY Specific"),
+#         LMDC   = get("LMDC Specific")
+#     )
+# }
 
+count_core <- function(core, groups){
+    tab <- table(core$Classification)
+    expected <- c("Global Core",paste0(groups, " Specific"))
+    out <- setNames(rep(0L, length(expected)), sub(" Core$", "", sub(" Specific$", "", expected)))
+
+    for(i in seq_along(expected)){
+        if(expected[i] %in% names(tab)){
+            out[i] <- tab[[expected[i]]]
+        }
+    }
+    as.data.frame(as.list(out), check.names = FALSE)
+}
 # ======================
 # Check pipeline
 # ======================
@@ -78,9 +91,9 @@ check_pipeline <- function(
     stratified,
     rare,
     occ,
-    core
+    classified
 ){
-
+    group <- occ$group
     cat("\n")
     cat("========================================\n")
     cat(" Pipeline diagnostics\n")
@@ -90,10 +103,10 @@ check_pipeline <- function(
     ## Original dataset
     ## ----------------------------
     cat("\nOriginal dataset\n")
-    print(table(dat$meta$city))
+    print(table(dat$meta[[group]]))
 
     cat("\nOriginal sites\n")
-    print(table(dat$meta$city, dat$meta$site))
+    print(table(dat$meta[[group]], dat$meta$site))
 
     cat("\nSequencing depth\n")
     print(summary(colSums(dat$otu)))
@@ -102,10 +115,10 @@ check_pipeline <- function(
     ## Stratified subset
     ## ----------------------------
     cat("\nStratified dataset\n")
-    print(table(stratified$meta$city))
+    print(table(stratified$meta[[group]]))
 
     cat("\nSelected sites\n")
-    print(table(stratified$meta$city,
+    print(table(stratified$meta[[group]],
                 stratified$meta$site))
 
     ## ----------------------------
@@ -120,7 +133,7 @@ check_pipeline <- function(
         !anyDuplicated(stratified$meta$Samplename)
     )
     cat("\nDetection summary\n")
-    print(table(core$nDetected))
+    print(table(classified$nDetected))
 
     cat("\n✓ OTU table and metadata synchronized\n")
 
@@ -142,10 +155,10 @@ check_pipeline <- function(
     ## Core classification
     ## ----------------------------
     cat("\nCore classification\n")
-    print(table(core$Classification))
+    print(table(classified$Classification))
 
     cat("\nPattern summary\n")
-    print(table(core$Pattern))
+    print(table(classified$Pattern))
 
     cat("\n========================================\n")
     cat(" Pipeline OK\n")
@@ -162,11 +175,8 @@ test_core_threshold <- function (
     {
     results <- data.frame(Threshold = integer(),Global = integer(),FHNY = integer(),LMDC = integer())
     for(th in thresholds){
-        x <- classify_core(
-            occ,
-            threshold = th
-        )
-        results <- rbind(results,cbind(Threshold = th ,count_core(x)))
+        x <- classify_core(occ,threshold = th)
+        results <- rbind(results,cbind(Threshold = th ,count_core(x$core, x$groups)))
     }
     cat("Running test_core_threshold...\n")
     return(results)
@@ -178,8 +188,8 @@ test_core_threshold <- function (
 
 test_rarefactions <- function(
     dat,
-    group = "city",
-    n_rare = c(1,2,5,10,20,50,100)
+    group,
+    n_rare = c(1,2,5,10) #,20,50,100)
 ){
     cat("Running test_rarefactions...\n")
     ## Empty results table
@@ -187,7 +197,7 @@ test_rarefactions <- function(
     ## Loop over the number of rarefactions
     for(nr in n_rare){
         x <- run_core(dat, nrep = nr)        
-        results <- rbind(results,cbind(Rarefactions = nr,count_core(x$core)))
+        results <- rbind(results,cbind(Rarefactions = nr,count_core(x$core, x$groups)))
     cat("---------------------------------\n")
     cat("Rarefactions:", nr, "\n")
     }
@@ -201,7 +211,7 @@ test_rarefactions <- function(
 
 test_depth <- function(
     dat,
-    depths = c(100,500,1000,2500,5000,6419,10000),
+    depths = c(100,500,1000,2500,5000,6419), #,10000),
     nrep = nrep,
     max_abs = max_abs
 ){
@@ -209,7 +219,7 @@ test_depth <- function(
     results <- data.frame()
     for(d in depths){
         x <- run_core(dat, depth = d)
-        results <- rbind(results,cbind(Depth = d,count_core(x$core)))
+        results <- rbind(results,cbind(Depth = d,count_core(x$core, x$groups)))
     }
     return(results)
 }
@@ -227,7 +237,7 @@ test_absences <- function(
     for(a in max_abs){
         x <- classify_core(occ,max_abs = a)
         threshold <- threshold_from_absence(occ$group_sizes, a)
-        results <- rbind(results,data.frame(MaxAbs = a,Threshold = round(min(threshold),3),count_core(x)))
+        results <- rbind(results,data.frame(MaxAbs = a,Threshold = round(min(threshold),3),count_core(x$core, x$groups)))
     }
 
     return(results)
@@ -238,7 +248,7 @@ test_absences <- function(
 
 test_sample_size <- function(
     dat,
-    group = "city",
+    group,
     sample_sizes = NULL
 ){
     cat("Running test_sample_sizes...\n")
@@ -247,7 +257,9 @@ test_sample_size <- function(
     results <- data.frame()
     for(n in sample_sizes){
         x <- run_core(dat, n = n)
-        results <- rbind(results,cbind(Samples = n,count_core(x$core)))
+#         tmp <- count_core(x$core, x$groups)
+#         print(names(tmp))
+        results <- rbind(results,cbind(Samples = n,count_core(x$core, x$groups)))
     }
     return(results)
 }
@@ -257,16 +269,16 @@ test_sample_size <- function(
 # ===================================
 
 test_min_count <- function(
-    stratified,
+    stratified, group,
     min_counts = 1:5
 ){
     cat("Running test_min_count...\n")
     results <- data.frame()
     rare <- repeat_rarefy(stratified$otu)
     for(mc in min_counts){
-        occ <- estimate_occupancy(rare,meta = stratified$meta,group = "city",min_count = mc,min_rel = 0)
-        core <- classify_core(occ, max_abs = MAX_ABSENCES)
-        results <- rbind(results,cbind(MinCount = mc,count_core(core)))
+        occ <- estimate_occupancy(rare,meta = stratified$meta,group = group ,min_count = mc,min_rel = 0)
+        x <- classify_core(occ, max_abs = MAX_ABSENCES)
+        results <- rbind(results,cbind(MinCount = mc,count_core(x$core, x$groups)))
     }
     return(results)
 }
@@ -276,16 +288,16 @@ test_min_count <- function(
 # =============================================
 
 test_relative_abundance <- function(
-    stratified,
+    stratified, group,
     min_rel = c(0, 0.0001, 0.0005, 0.001, 0.002)
 ){
     cat("Running test_relative_abundance...\n")
     results <- data.frame()
     rare <- repeat_rarefy(stratified$otu)
     for(r in min_rel){
-        occ <- estimate_occupancy(rare,meta = stratified$meta,group = "city",min_count = 1,min_rel = r)
+        occ <- estimate_occupancy(rare,meta = stratified$meta,group = group ,min_count = 1,min_rel = r)
         x <- classify_core(occ, max_abs = MAX_ABSENCES)
-        results <- rbind(results,cbind(MinRel = r,count_core(x)))
+        results <- rbind(results,cbind(MinRel = r,count_core(x$core, x$groups)))
     }
     return(results)
 }

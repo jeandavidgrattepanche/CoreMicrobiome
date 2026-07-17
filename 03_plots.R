@@ -3,11 +3,23 @@ plot_sensitivity <- function(
     x ,
     xlab,
     title = NULL,
-    cols = c("black","steelblue","firebrick")
+    cols = NULL
 ){
+    groups <- names(results)[!(names(results) %in% x)]
+if (is.null(cols)) {
+    cols <- c(
+        "black",
+        "steelblue",
+        "firebrick",
+        "darkgreen",
+        "orange",
+        "purple",
+        "brown"
+    )[seq_along(groups)]
+}
     matplot(
         x = results[[x]],
-        y= as.matrix(results[, c("Global","FHNY","LMDC")]),
+        y= as.matrix(results[, groups]),
         type = "b",
         pch = 19,
         lty = 1,
@@ -22,7 +34,7 @@ plot_sensitivity <- function(
     )
     legend(
         "topright",
-        legend = c("Global","FHNY","LMDC"),
+        legend = groups,
         col = cols,
         lty = 1,
         pch = 19,

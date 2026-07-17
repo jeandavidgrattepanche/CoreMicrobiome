@@ -10,4 +10,5 @@ MAX_ABSENCES     <- 3 #occupancy based on sample count
 RANDOM_SEED      <- 1234
 MIN_COUNT        <- 1
 MIN_REL_ABUND    <- 0.0005
+GROUP            <- "dataset" 
 

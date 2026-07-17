@@ -17,7 +17,7 @@ check_pipeline(
     stratified,
     rare,
     occ,
-    core
+    classified
 )
 
 
@@ -38,13 +38,13 @@ occ_threshold_test <- test_core_threshold(occ)
 absence_test <- test_absences(occ)
 
 ## Sample size
-samplesize_test <- test_sample_size(dat)
+samplesize_test <- test_sample_size(dat, occ$group)
 
 ## Minimum read count
-count_test <- test_min_count(stratified)
+count_test <- test_min_count(stratified, occ$group)
 
 ## Minimum relative abundance
-relab_test <- test_relative_abundance(stratified)
+relab_test <- test_relative_abundance(stratified, occ$group)
 
 
 cat("\n")

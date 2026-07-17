@@ -292,7 +292,7 @@ classify_core <- function(occ, max_abs = NULL, threshold = NULL){
        # occ,
         row.names = NULL
     )
-    return(out)
+    return(list(core = out, groups = occ$groups))
 }
 
 summary_core <- function(core){
@@ -326,6 +326,7 @@ pipeline_summary <- function(){
     cat("Rarefactions                :", N_RAREFACTIONS, "\n")
     cat("missing in max samples      :", MAX_ABSENCES, "\n")
     cat("Random seed                 :", RANDOM_SEED, "\n")
+    cat("group investigated          :", GROUP, "\n")
     cat("========================================\n\n")
 
 }
