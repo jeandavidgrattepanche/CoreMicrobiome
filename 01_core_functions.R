@@ -24,11 +24,14 @@
 # |     pipeline_summary()
 
 # 01 Data handling
-subset_data <- function(otu, meta,  ..., min_reads = 0) {
+subset_data <- function(otu, meta, filters = NULL, min_reads = 0) {
 #   browser()
   ## Filter metadata using dplyr syntax
-  meta_sub <- meta %>%
-        dplyr::filter(...)
+    meta_sub <- meta
+    if (!is.null(filters)) {
+        for (v in names(filters)) {
+            meta_sub <- meta_sub[meta_sub[[v]] %in% filters[[v]],,drop = FALSE]
+        }}  
   sample_depth <- colSums(otu)[meta_sub$Samplename]
   good_samples <- names(sample_depth)[sample_depth >= min_reads]
 
