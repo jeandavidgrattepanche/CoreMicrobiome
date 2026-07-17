@@ -23,21 +23,6 @@ run_core <- function(
 ))
 }
 
-# count_core <- function(core){
-#     tab <- table(core$Classification)
-#     get <- function(name){
-#         if(name %in% names(tab))
-#             as.integer(tab[name])
-#         else
-#             0
-#     }
-#     data.frame(
-#         Global = get("Global Core"),
-#         FHNY   = get("FHNY Specific"),
-#         LMDC   = get("LMDC Specific")
-#     )
-# }
-
 count_core <- function(core, groups){
     tab <- table(core$Classification)
     expected <- c("Global Core",paste0(groups, " Specific"))
