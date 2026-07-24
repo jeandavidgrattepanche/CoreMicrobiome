@@ -7,6 +7,8 @@
 ##      to key analytical parameters.
 ############################################################
 
+source("02_sensitivity_tests.R")
+
 
 ############################################################
 ## 1. Pipeline diagnostics
@@ -35,7 +37,7 @@ depth_test <- test_depth(dat)
 occ_threshold_test <- test_core_threshold(occ)
 
 ## Allowed absences
-absence_test <- test_absences(occ)
+absence_test <- test_absences(occ, stratified)
 
 ## Sample size
 samplesize_test <- test_sample_size(dat, occ$group)
@@ -59,3 +61,5 @@ cat("  samplesize_test\n")
 cat("  count_test\n")
 cat("  relab_test\n")
 cat("========================================\n")
+
+source("03_plots.R")

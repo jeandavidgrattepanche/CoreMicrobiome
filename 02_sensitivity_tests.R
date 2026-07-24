@@ -23,18 +23,38 @@ run_core <- function(
 ))
 }
 
-count_core <- function(core, groups){
-    tab <- table(core$Classification)
-    expected <- c("Global Core",paste0(groups, " Specific"))
-    out <- setNames(rep(0L, length(expected)), sub(" Core$", "", sub(" Specific$", "", expected)))
+# count_core <- function(core){
+#     tab <- table(core$CoreType)
+#     get <- function(name){
+#         if(name %in% names(tab))
+#             as.integer(tab[name])
+#         else
+#             0
+#     }
+#     data.frame(
+#         Global = get("Global Core"),
+#         FHNY   = get("FHNY Specific"),
+#         LMDC   = get("LMDC Specific")
+#     )
+# }
 
+count_core <- function(core, groups){
+    tab <- table(core$CoreType)
+    expected <- c("Global Core",paste0(groups, " Specific"))
+    otu_out <- setNames(rep(0L, length(expected)), sub(" Core$", "", sub(" Specific$", "", expected)))
+    read_out <- setNames(rep(0, length(expected)), paste0(names(otu_out), "_ReadPct"))
+    total_reads <- sum(core$TotalReads)
     for(i in seq_along(expected)){
-        if(expected[i] %in% names(tab)){
-            out[i] <- tab[[expected[i]]]
+        idx <- core$CoreType == expected[i]
+        otu_out[i] <- sum(idx)
+        if(any(idx)){
+            read_out[i] <- 100 * sum(core$TotalReads[idx]) / total_reads
         }
     }
+    out <- c(otu_out, read_out)
     as.data.frame(as.list(out), check.names = FALSE)
 }
+
 # ======================
 # Check pipeline
 # ======================
@@ -140,7 +160,7 @@ check_pipeline <- function(
     ## Core classification
     ## ----------------------------
     cat("\nCore classification\n")
-    print(table(classified$Classification))
+    print(table(classified$CoreType))
 
     cat("\nPattern summary\n")
     print(table(classified$Pattern))
@@ -174,7 +194,7 @@ test_core_threshold <- function (
 test_rarefactions <- function(
     dat,
     group,
-    n_rare = c(1,2,5,10) #,20,50,100)
+    n_rare = c(1,2,5,10,20,50,100)
 ){
     cat("Running test_rarefactions...\n")
     ## Empty results table
@@ -214,15 +234,17 @@ test_depth <- function(
 # ======================
 
 test_absences <- function(
-    occ,
-    max_abs = 0:5
+    occ, stratified, 
+    max_abs = NULL
 ){
     cat("Running test_absences...\n")
+    if (is.null(max_abs))
+        max_abs <- unique(round(seq(1,floor(min(table(stratified$meta[[occ$group]])) / 2),length.out = 15)))
     results <- data.frame()
     for(a in max_abs){
         x <- classify_core(occ,max_abs = a)
         threshold <- threshold_from_absence(occ$group_sizes, a)
-        results <- rbind(results,data.frame(MaxAbs = a,Threshold = round(min(threshold),3),count_core(x$core, x$groups)))
+        results <- rbind(results,data.frame(MaxAbs = a,count_core(x$core, x$groups), Threshold = round(min(threshold),3)))
     }
 
     return(results)
@@ -238,7 +260,7 @@ test_sample_size <- function(
 ){
     cat("Running test_sample_sizes...\n")
     if (is.null(sample_sizes))
-        sample_sizes <- 2:min(table(dat$meta[[group]]))
+        sample_sizes <- 4:min(table(dat$meta[[group]]))
     results <- data.frame()
     for(n in sample_sizes){
         x <- run_core(dat, n = n)
@@ -255,7 +277,7 @@ test_sample_size <- function(
 
 test_min_count <- function(
     stratified, group,
-    min_counts = 1:5
+    min_counts = 1:15
 ){
     cat("Running test_min_count...\n")
     results <- data.frame()

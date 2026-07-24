@@ -29,8 +29,10 @@ rare <- x$rare
 occ <- x$occ
 classified <- x$core
 
+core_OTUs <- core_table(classified,occ = occ,otu = stratified$otu)
+
 sumcore <- summary_core(classified)
-print(sumcore$classification)
+print(sumcore$coretype)
 print(sumcore$pattern)
 
 cat("\nAnalysis completed successfully.\n")

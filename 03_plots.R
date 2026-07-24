@@ -3,20 +3,28 @@ plot_sensitivity <- function(
     x ,
     xlab,
     title = NULL,
+    metric = "",
+    ylab = "Number of core OTUs",
     cols = NULL
 ){
-    groups <- names(results)[!(names(results) %in% x)]
-if (is.null(cols)) {
-    cols <- c(
-        "black",
-        "steelblue",
-        "firebrick",
-        "darkgreen",
-        "orange",
-        "purple",
-        "brown"
-    )[seq_along(groups)]
-}
+    groups <- if(metric == ""){
+        setdiff(names(results)[!grepl("_ReadPct$", names(results))], x)
+    } else {
+        names(results)[grepl(paste0(metric, "$"), names(results))]
+    }    
+    groups <- setdiff(groups, x)
+
+    if (is.null(cols)) {
+        cols <- c(
+            "black",
+            "steelblue",
+            "firebrick",
+            "darkgreen",
+            "orange",
+            "purple",
+            "brown"
+        )[seq_along(groups)]
+    }
     matplot(
         x = results[[x]],
         y= as.matrix(results[, groups]),
@@ -29,12 +37,13 @@ if (is.null(cols)) {
         cex.axis = 1,
         col = cols,
         xlab = xlab,
-        ylab = "Number of core OTUs",
+        ylab = ylab,
+        ylim = if(metric == "") c(0,160) else c(0,50),
         main = title
     )
     legend(
         "topright",
-        legend = groups,
+        legend = sub(metric,"",groups),
         col = cols,
         lty = 1,
         pch = 19,
@@ -44,33 +53,47 @@ if (is.null(cols)) {
 }
 
 
-plot_depth <- function(results, title = NULL){
-    plot_sensitivity(results, x= "Depth", xlab="Rarefaction depth", title = title)
+plot_depth <- function(results, title = NULL,...){
+    plot_sensitivity(results, x= "Depth", xlab="Rarefaction depth", title = title,...)
 }
 
-plot_rarefactions <- function(results, title = NULL){
-    plot_sensitivity(results, x= "Rarefactions", xlab="Number of Rarefactions", title = title)
+plot_rarefactions <- function(results, title = NULL,...){
+    plot_sensitivity(results, x= "Rarefactions", xlab="Number of Rarefactions", title = title,...)
 }
 
-plot_absences <- function(results, title = NULL){
-    plot_sensitivity(results, x= "MaxAbs", xlab="Maximum allowed missing samples", title = title)
+plot_absences <- function(results, title = NULL,...){
+    plot_sensitivity(results, x= "MaxAbs", xlab="Maximum allowed missing samples", title = title,...)
 }
 
-plot_thocc <- function(results, title = NULL){
-    plot_sensitivity(results, x= "Threshold", xlab="Occupancy threshold", title = title)
+plot_thocc <- function(results, title = NULL,...){
+    plot_sensitivity(results, x= "Threshold", xlab="Occupancy threshold", title = title,...)
 }
 
-plot_sample_size <- function(results, title = NULL){
-    plot_sensitivity(results, x= "Samples", xlab="Samples per group", title = title)
+plot_sample_size <- function(results, title = NULL,...){
+    plot_sensitivity(results, x= "Samples", xlab="Samples per group", title = title,...)
 }
 
-plot_min_count <- function(results, title = NULL){
-    plot_sensitivity(results, x= "MinCount", xlab="Minimum Number of read per OTUs", title = title)
+plot_min_count <- function(results, title = NULL,...){
+    plot_sensitivity(results, x= "MinCount", xlab="Minimum Number of read per OTUs", title = title,...)
 }
 
-plot_relative_abundance <- function(results, title = NULL){
-    plot_sensitivity(results, x= "MinRel", xlab="Minimum relative abundance", title = title)
+plot_relative_abundance <- function(results, title = NULL,...){
+    plot_sensitivity(results, x= "MinRel", xlab="Minimum relative abundance", title = title,...)
 }
+
+# plot_depth(depth_test)
+# 
+# plot_rarefactions(rarefaction_test)
+# 
+# plot_absences(absence_test)
+# 
+# plot_thocc(occ_threshold_test)
+# 
+# plot_sample_size(samplesize_test)
+# 
+# plot_min_count(count_test)
+# 
+# plot_relative_abundance(relab_test)
 
 
 plot_validation <- function(
@@ -80,7 +103,9 @@ plot_validation <- function(
     occ_threshold_test,
     samplesize_test,
     count_test,
-    relab_test
+    relab_test,
+    metric = "",
+    ylab = "Number of core OTUs"
 ){
 
     oldpar <- par(no.readonly = TRUE)
@@ -88,13 +113,13 @@ plot_validation <- function(
 
     par(mfrow = c(3, 3), mar = c(4,4,2,1))
 
-    plot_depth(depth_test)
-    plot_rarefactions(rarefaction_test)
-    plot_absences(absence_test)
-    plot_thocc(occ_threshold_test)
-    plot_sample_size(samplesize_test)
-    plot_min_count(count_test)
-    plot_relative_abundance(relab_test)
+    plot_depth(depth_test, metric = metric, ylab = ylab)
+    plot_rarefactions(rarefaction_test, metric = metric, ylab = ylab)
+    plot_absences(absence_test, metric = metric, ylab = ylab)
+    plot_thocc(occ_threshold_test, metric = metric, ylab = ylab)
+    plot_sample_size(samplesize_test, metric = metric, ylab = ylab)
+    plot_min_count(count_test, metric = metric, ylab = ylab)
+    plot_relative_abundance(relab_test, metric = metric, ylab = ylab)
 }
 
 plot_validation(
@@ -107,4 +132,62 @@ plot_validation(
     relab_test
 )
 
+quartz()
 
+plot_validation(
+    depth_test,
+    rarefaction_test,
+    absence_test,
+    occ_threshold_test,
+    samplesize_test,
+    count_test,
+    relab_test,
+    metric = "_ReadPct",
+    ylab = "Percentage of reads (%)"
+)
+
+# plot_core_summary() => barplot(table(core$Classification))
+
+# plot_upset() — overlap of core OTUs among groups.
+# plot_taxonomy() — taxonomic composition of the global and group-specific cores.
+# plot_heatmap() — occupancy of core taxa across groups.
+# plot_occupancy() — occupancy distributions.
+
+
+
+# sample_richness <- colSums(stratified$otu > 0)
+# mean_richness <- tapply(
+#     sample_richness,
+#     stratified$meta$city,
+#     mean
+# )
+# sd_richness <- tapply(
+#     sample_richness,
+#     stratified$meta$city,
+#     sd
+# )
+# data.frame(
+#     City = names(mean_richness),
+#     Mean = round(mean_richness, 1),
+#     SD = round(sd_richness, 1),
+#     Total_OTUs = total_detected[names(mean_richness)]
+# )
+# 
+# test_abs$FHNY_per_sample <- test_abs$FHNY / mean_richness["FHNY"]
+# test_abs$LMDC_per_sample <- test_abs$LMDC / mean_richness["LMDC"]
+# 
+# text(
+#     x = 5,
+#     y = test_abs$FHNY[nrow(test_abs)],
+#     labels = sprintf("%.2f%%", test_abs$FHNY_per_sample[nrow(test_abs)]),
+#     col = "red",
+#     pos = 4, xpd = NA
+# )
+# 
+# text(
+#     x = 5,
+#     y = test_abs$LMDC[nrow(test_abs)],
+#     labels = sprintf("%.2f%%", test_abs$LMDC_per_sample[nrow(test_abs)]),
+#     col = "green4",
+#     pos = 4, xpd = NA
+# )

@@ -9,12 +9,12 @@ META_FILE <- "/metadata.txt"
 # Dataset selection
 # ===========================
 FILTERS <- list(
-    city     = c("NY","DC","PH")
-    dataset  = c("Environmental","Experimental"),
-    molecule = c("16Sc","16SD","18Sc"),
+    city     = c("NY","DC", "PH"),
+    dataset  = c("Environmental"," Experimental"),
+    molecule = c("16Sc","16SD"."18Sc")
 )
 
-GROUP      <- "dataset"
+GROUP      <- "city"
 
 # ===========================
 # Pipeline parameters

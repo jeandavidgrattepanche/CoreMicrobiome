@@ -188,6 +188,8 @@ repeat_rarefy <- function(otu,
 
 # 03 Occupancy
 occupancy <- function(otu, meta, group,  min_count = MIN_COUNT, min_rel = MIN_REL_ABUND){
+#     cat("run occupancy\n")
+    TotalReads <- rowSums(otu)
     ## make sure sample order is identical
     meta <- meta[match(colnames(otu), meta$Samplename), ]
     ## relative abundance
@@ -203,18 +205,25 @@ occupancy <- function(otu, meta, group,  min_count = MIN_COUNT, min_rel = MIN_RE
     })
     occ <- do.call(cbind, occ)
     colnames(occ) <- groups
-    occ
+    list(occ = occ,
+    TotalReads = TotalReads
+    )
 }
 
 
 estimate_occupancy <- function(rare.list, meta, group, min_count = MIN_COUNT, min_rel = MIN_REL_ABUND){
     occ.list <- lapply(rare.list,occupancy,meta = meta,group = group, min_count = min_count,min_rel = min_rel)
-    mean_occ <- Reduce("+", occ.list) / length(occ.list)
-    sd_occ <- sqrt(Reduce("+",lapply(occ.list,function(x) (x-mean_occ)^2)) / (length(occ.list)-1))
+    occ_mats <- lapply(occ.list, `[[`, "occ")
+    mean_occ <- Reduce("+", occ_mats) / length(occ_mats)
+    sd_occ <- sqrt(Reduce("+",lapply(occ_mats,function(x) (x-mean_occ)^2)) / (length(occ_mats)-1))
+    read_list <- lapply(occ.list, `[[`, "TotalReads")
+    mean_reads <- Reduce("+", read_list) / length(read_list)
+    cat("estimate occupancy\n")
     list(
       mean = mean_occ,
       sd = sd_occ,
-      all = occ.list,
+      all = occ_mats,
+      TotalReads = mean_reads,
       groups = colnames(mean_occ),
       group  = group,
       group_sizes = table(meta[[group]]))		
@@ -231,6 +240,7 @@ max_abs_from_threshold <- function(n, threshold){
 }
 
 classify_core <- function(occ, max_abs = NULL, threshold = NULL){
+    cat("run classifier\n")
     occ_mean <- occ$mean
     group_sizes <- occ$group_sizes
     detected <- occ_mean > 0
@@ -262,23 +272,23 @@ classify_core <- function(occ, max_abs = NULL, threshold = NULL){
 #     print(colSums(core))
 #     cat("\nCore combinations\n")
 #     print(table(core[,1], core[,2]))
-    detected_pattern <- apply(detected, 1, paste0, collapse = "")
-    core_pattern     <- apply(core, 1, paste0, collapse = "")
+    detected_pattern <- apply(detected * 1L, 1, paste0, collapse = "")
+    core_pattern     <- apply(core * 1L, 1, paste0, collapse = "")
     nDetected <- rowSums(detected)
     nCore <- rowSums(core)
-    Classification <- character(nrow(occ_mean))
+    CoreType <- character(nrow(occ_mean))
     for(i in seq_len(nrow(occ_mean))){
         groups_core <- names(group_sizes)[core[i,]]
         if(nDetected[i] == 0){
-            Classification[i]<- "Absent"
+           CoreType[i]<- "Absent"
         } else if (nCore[i] == 0){
-            Classification[i] <- "Not Core"
+            CoreType[i] <- "Not Core"
         } else if(nCore[i] == ncol(occ_mean)){
-            Classification[i] <- "Global Core"
+            CoreType[i] <- "Global Core"
         } else if(nCore[i] == 1){
-            Classification[i] <- paste(groups_core, "Specific")
+            CoreType[i] <- paste(groups_core, "Specific")
         } else{
-            Classification[i] <- paste(
+            CoreType[i] <- paste(
                 paste(groups_core, collapse="-"),
                 "Shared"
             )
@@ -291,19 +301,48 @@ classify_core <- function(occ, max_abs = NULL, threshold = NULL){
         detectedPattern = detected_pattern,
         nDetected = nDetected,
         nCore = nCore,
-        Classification = Classification,
+        CoreType = CoreType,
+        TotalReads = occ$TotalReads,
        # occ,
         row.names = NULL
     )
     return(list(core = out, groups = occ$groups))
 }
 
+list_core <- function(core, coretype = NULL){
+    x <- core
+    if(!is.null(coretype))
+        x <- subset(x, CoreType %in% coretype)
+    x
+}
+
+split_core <- function(core){
+    split(core, core$CoreType)
+}
+
+core_table <- function(classified,
+                       occ = NULL,
+                       otu = NULL,
+                       file = "CoreOTUs.tsv",
+                       remove = c("Absent", "Not Core")) { #, "Not Core"
+    x <- classified
+    x <- subset(x, !(CoreType %in% remove))
+    if (!is.null(occ))
+        x <- cbind(x, occ$mean[match(x$OTU, rownames(occ$mean)), ])
+    if (!is.null(otu))
+        x$TotalReads <- rowSums(otu[x$OTU, , drop = FALSE])
+ ## Order for convenience
+    x <- x[order(x$CoreType, -x$TotalReads), ]
+    write.table(x,file = file,sep = "\t",quote = FALSE,row.names = FALSE)
+    invisible(x)
+}
+
 summary_core <- function(core){
     list(
-        classification =
+        coretype =
             dplyr::count(
                 core,
-                Classification,
+                CoreType,
                 sort = TRUE
             ),
         pattern =
